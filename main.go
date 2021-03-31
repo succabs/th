@@ -3,13 +3,18 @@ package main
 //importing the important stuff
 import (
 	"errors"
-	"fmt"
+	"image/color"
 	_ "image/png"
 	"log"
 	"math/rand"
 
+	"github.com/hajimehoshi/ebiten/examples/resources/fonts"
+	"github.com/hajimehoshi/ebiten/text"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/opentype"
 )
 
 // Create our empty vars
@@ -18,7 +23,7 @@ var (
 	spaceShip          *ebiten.Image
 	playerOne          player
 	regularTermination = errors.New("regular termination")
-	actualNames        [10]string
+	actualNames        string
 	fstName            [5]string
 	sndName            [5]string
 	sideBarImg         *ebiten.Image
@@ -40,14 +45,47 @@ type player struct {
 // Our game constants
 const (
 	screenWidth, screenHeight = 640, 480
-	startX, startY            = 100, 100
+	startX, startY            = 500, 530
 	sideBarX, sideBarY        = 1100, 0
 	downBarX, downBarY        = 0, 600
+	nimiX, nimiY              = 100, 300
 )
+
+var (
+	mplusNormalFont font.Face
+	mplusBigFont    font.Face
+	jaKanjis        = []rune{}
+)
+
+func init() {
+	tt, err := opentype.Parse(fonts.MPlus1pRegular_ttf)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	const dpi = 72
+	mplusNormalFont, err = opentype.NewFace(tt, &opentype.FaceOptions{
+		Size:    24,
+		DPI:     dpi,
+		Hinting: font.HintingFull,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	mplusBigFont, err = opentype.NewFace(tt, &opentype.FaceOptions{
+		Size:    48,
+		DPI:     dpi,
+		Hinting: font.HintingFull,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
 //call once when the program starts
 func init() {
 
+	randomizeNames()
 	sideBarImg, _, err = ebitenutil.NewImageFromFile("assets/sivupalkki.png")
 	if err != nil {
 		log.Fatal(err)
@@ -62,7 +100,7 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	playerOne = player{spaceShip, startX, startY, 4}
+	playerOne = player{spaceShip, startX, startY, 64}
 }
 
 // Update proceeds the game state.
@@ -84,7 +122,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	scale := ebiten.DeviceScaleFactor()
 
 	ebitenutil.DebugPrint(screen, "Arrows to move, q to quit")
-	randomizeNames()
+
+	ebitenutil.DebugPrint(screen, actualNames)
 
 	playerOp := &ebiten.DrawImageOptions{}
 	playerOp.GeoM.Translate(playerOne.xPos, playerOne.yPos)
@@ -101,7 +140,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	downBarOp.GeoM.Scale(scale*2.2, scale)
 	screen.DrawImage(downBarImg, downBarOp)
 
+	// Draw the sample text
+	text.Draw(screen, sampleText, mplusNormalFont, 50, 80, color.White)
+
 }
+
+const sampleText = `The quick brown fox jumps over the lazy dog.`
 
 // Layout takes the outside size (e.g., the window size) and returns the (logical) screen size.
 // If you don't have to adjust the screen size with the outside size, just return a fixed size.
@@ -137,29 +181,26 @@ func randomizeNames() {
 	sndName[3] = "koira"  // Assign a value to the first element
 	sndName[4] = "tonttu" // Assign a value to the first element
 
-	for i := 0; i < len(actualNames); i++ {
-		randomIndex := rand.Intn(len(fstName))
-		pick1 := fstName[randomIndex]
-		randomIndex2 := rand.Intn(len(sndName))
-		pick2 := sndName[randomIndex2]
+	randomIndex := rand.Intn(len(fstName))
+	pick1 := fstName[randomIndex]
+	randomIndex2 := rand.Intn(len(sndName))
+	pick2 := sndName[randomIndex2]
 
-		actualNames[i] = pick1 + pick2 + " \n"
-		fmt.Print(actualNames[i])
-	}
+	actualNames = pick1 + pick2
 }
 
 // Move the player depending on which key is pressed
 func movePlayer() {
-	if ebiten.IsKeyPressed(ebiten.KeyUp) {
+	if inpututil.IsKeyJustPressed(ebiten.KeyUp) {
 		playerOne.yPos -= playerOne.speed
 	}
-	if ebiten.IsKeyPressed(ebiten.KeyDown) {
+	if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
 		playerOne.yPos += playerOne.speed
 	}
-	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
+	if inpututil.IsKeyJustPressed(ebiten.KeyLeft) {
 		playerOne.xPos -= playerOne.speed
 	}
-	if ebiten.IsKeyPressed(ebiten.KeyRight) {
+	if inpututil.IsKeyJustPressed(ebiten.KeyRight) {
 		playerOne.xPos += playerOne.speed
 	}
 }
