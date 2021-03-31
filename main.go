@@ -3,16 +3,17 @@ package main
 //importing the important stuff
 import (
 	"errors"
+	"fmt"
 	"image/color"
 	_ "image/png"
 	"log"
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/examples/resources/fonts"
-	"github.com/hajimehoshi/ebiten/text"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/text"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 )
@@ -23,16 +24,18 @@ var (
 	spaceShip          *ebiten.Image
 	playerOne          player
 	regularTermination = errors.New("regular termination")
-	actualNames        string
+	actualNames        [10]string
 	fstName            [5]string
 	sndName            [5]string
 	sideBarImg         *ebiten.Image
 	downBarImg         *ebiten.Image
+	laattaImg          *ebiten.Image
 )
 
 //game struct
 type Game struct {
-	count int
+	count  int
+	layers [][]int
 }
 
 // Create the player struct
@@ -49,6 +52,8 @@ const (
 	sideBarX, sideBarY        = 1100, 0
 	downBarX, downBarY        = 0, 600
 	nimiX, nimiY              = 100, 300
+	tileSize                  = 64
+	tileXNum                  = 8
 )
 
 var (
@@ -91,6 +96,11 @@ func init() {
 		log.Fatal(err)
 	}
 
+	laattaImg, _, err = ebitenutil.NewImageFromFile("assets/laatta.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	downBarImg, _, err = ebitenutil.NewImageFromFile("assets/alapalkki.png")
 	if err != nil {
 		log.Fatal(err)
@@ -116,14 +126,14 @@ func (g *Game) Update() error {
 	return nil
 }
 
+const sampleText = "testi"
+
 // Draw draws the game screen.
 // Draw is called every frame (typically 1/60[s] for 60Hz display).
 func (g *Game) Draw(screen *ebiten.Image) {
 	scale := ebiten.DeviceScaleFactor()
 
-	ebitenutil.DebugPrint(screen, "Arrows to move, q to quit")
-
-	ebitenutil.DebugPrint(screen, actualNames)
+	ebitenutil.DebugPrint(screen, "\n Arrows to move, q to quit")
 
 	playerOp := &ebiten.DrawImageOptions{}
 	playerOp.GeoM.Translate(playerOne.xPos, playerOne.yPos)
@@ -141,11 +151,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	screen.DrawImage(downBarImg, downBarOp)
 
 	// Draw the sample text
-	text.Draw(screen, sampleText, mplusNormalFont, 50, 80, color.White)
+	text.Draw(screen, sampleText, mplusNormalFont, 100, 80, color.White)
 
 }
-
-const sampleText = `The quick brown fox jumps over the lazy dog.`
 
 // Layout takes the outside size (e.g., the window size) and returns the (logical) screen size.
 // If you don't have to adjust the screen size with the outside size, just return a fixed size.
@@ -181,12 +189,15 @@ func randomizeNames() {
 	sndName[3] = "koira"  // Assign a value to the first element
 	sndName[4] = "tonttu" // Assign a value to the first element
 
-	randomIndex := rand.Intn(len(fstName))
-	pick1 := fstName[randomIndex]
-	randomIndex2 := rand.Intn(len(sndName))
-	pick2 := sndName[randomIndex2]
+	for i := 0; i < len(actualNames); i++ {
+		randomIndex := rand.Intn(len(fstName))
+		pick1 := fstName[randomIndex]
+		randomIndex2 := rand.Intn(len(sndName))
+		pick2 := sndName[randomIndex2]
 
-	actualNames = pick1 + pick2
+		actualNames[i] = pick1 + pick2 + " \n"
+		fmt.Print(actualNames[i])
+	}
 }
 
 // Move the player depending on which key is pressed
