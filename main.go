@@ -2,80 +2,124 @@ package main
 
 //importing the important stuff
 import (
+	"errors"
 	"fmt"
+	_ "image/png"
 	"log"
 	"math/rand"
 
-	"github.com/hajimehoshi/ebiten"
-	"github.com/hajimehoshi/ebiten/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
 // Create our empty vars
 var (
-	err        error
-	background *ebiten.Image
-	spaceShip  *ebiten.Image
-	playerOne  player
+	err                error
+	spaceShip          *ebiten.Image
+	playerOne          player
+	regularTermination = errors.New("regular termination")
+	actualNames        [10]string
+	fstName            [5]string
+	sndName            [5]string
+	sideBarImg         *ebiten.Image
+	downBarImg         *ebiten.Image
 )
+
+//game struct
+type Game struct {
+	count int
+}
+
+// Create the player struct
+type player struct {
+	image      *ebiten.Image
+	xPos, yPos float64
+	speed      float64
+}
 
 // Our game constants
 const (
 	screenWidth, screenHeight = 640, 480
+	startX, startY            = 100, 100
+	sideBarX, sideBarY        = 1100, 0
+	downBarX, downBarY        = 0, 600
 )
 
 //call once when the program starts
 func init() {
-	background, _, err = ebitenutil.NewImageFromFile("assets/space.png", ebiten.FilterDefault)
-	if err != nil {
-		log.Fatal(err)
-	}
-	spaceShip, _, err = ebitenutil.NewImageFromFile("assets/player.png", ebiten.FilterDefault)
+
+	sideBarImg, _, err = ebitenutil.NewImageFromFile("assets/sivupalkki.png")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	playerOne = player{spaceShip, screenWidth / 2, screenHeight / 2, 4}
+	downBarImg, _, err = ebitenutil.NewImageFromFile("assets/alapalkki.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	spaceShip, _, err = ebitenutil.NewImageFromFile("assets/player.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+	playerOne = player{spaceShip, startX, startY, 4}
 }
 
-//Function for updating the screen
-func update(screen *ebiten.Image) error {
+// Update proceeds the game state.
+// Update is called every tick (1/60 [s] by default).
+func (g *Game) Update() error {
+	g.count++
+
 	movePlayer()
-	if ebiten.IsDrawingSkipped() {
-		return nil
+
+	if ebiten.IsKeyPressed(ebiten.KeyQ) {
+		return regularTermination
 	}
-
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(0, 0)
-	screen.DrawImage(background, op)
-	ebitenutil.DebugPrint(screen, "Tervetuloa!")
-
-	playerOp := &ebiten.DrawImageOptions{}
-	playerOp.GeoM.Translate(playerOne.xPos, playerOne.yPos)
-	screen.DrawImage(playerOne.image, playerOp)
-
 	return nil
 }
 
-// Move the player depending on which key is pressed
-func movePlayer() {
-	if ebiten.IsKeyPressed(ebiten.KeyUp) {
-		playerOne.yPos -= playerOne.speed
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyDown) {
-		playerOne.yPos += playerOne.speed
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-		playerOne.xPos -= playerOne.speed
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyRight) {
-		playerOne.xPos += playerOne.speed
-	}
+// Draw draws the game screen.
+// Draw is called every frame (typically 1/60[s] for 60Hz display).
+func (g *Game) Draw(screen *ebiten.Image) {
+	scale := ebiten.DeviceScaleFactor()
+
+	ebitenutil.DebugPrint(screen, "Arrows to move, q to quit")
+	randomizeNames()
+
+	playerOp := &ebiten.DrawImageOptions{}
+	playerOp.GeoM.Translate(playerOne.xPos, playerOne.yPos)
+	playerOp.GeoM.Scale(scale, scale)
+	screen.DrawImage(playerOne.image, playerOp)
+
+	sideBarOp := &ebiten.DrawImageOptions{}
+	sideBarOp.GeoM.Translate(sideBarX, sideBarY)
+	sideBarOp.GeoM.Scale(scale, scale*1.5)
+	screen.DrawImage(sideBarImg, sideBarOp)
+
+	downBarOp := &ebiten.DrawImageOptions{}
+	downBarOp.GeoM.Translate(downBarX, downBarY)
+	downBarOp.GeoM.Scale(scale*2.2, scale)
+	screen.DrawImage(downBarImg, downBarOp)
+
 }
 
-//arrays for character names
-var actualNames [10]string
-var fstName [5]string
-var sndName [5]string
+// Layout takes the outside size (e.g., the window size) and returns the (logical) screen size.
+// If you don't have to adjust the screen size with the outside size, just return a fixed size.
+func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
+	s := ebiten.DeviceScaleFactor()
+	return int(float64(outsideWidth) * s), int(float64(outsideHeight) * s)
+}
+
+func main() {
+	game := &Game{}
+	// Sepcify the window size as you like. Here, a doulbed size is specified.
+	ebiten.SetFullscreen(true)
+	ebiten.SetWindowTitle("Taistelun hurmos")
+	// Call ebiten.RunGame to start your game loop.
+	if err := ebiten.RunGame(game); err != nil {
+		log.Fatal(err)
+	}
+}
 
 //generating the names, takes first and last part of the name from lists randomly
 //and combines them in a for-loop to an array called actualNames
@@ -104,16 +148,18 @@ func randomizeNames() {
 	}
 }
 
-// Create the player class
-type player struct {
-	image      *ebiten.Image
-	xPos, yPos float64
-	speed      float64
-}
-
-//the main function
-func main() {
-	if err := ebiten.Run(update, screenWidth, screenHeight, 1, "Hello, World!"); err != nil {
-		log.Fatal(err)
+// Move the player depending on which key is pressed
+func movePlayer() {
+	if ebiten.IsKeyPressed(ebiten.KeyUp) {
+		playerOne.yPos -= playerOne.speed
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyDown) {
+		playerOne.yPos += playerOne.speed
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
+		playerOne.xPos -= playerOne.speed
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyRight) {
+		playerOne.xPos += playerOne.speed
 	}
 }
